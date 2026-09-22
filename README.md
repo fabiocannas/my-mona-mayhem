@@ -62,6 +62,18 @@ The workshop supports two tracks — follow the one that matches your preferred 
 - **Font**: Press Start 2P (retro gaming font)
 - **API**: GitHub's contribution graph API
 
+## Contribution API proxy
+
+The server-side `GET /api/contributions/:username` route fetches
+`https://github.com/:username.contribs` and returns GitHub's JSON response. It
+validates GitHub usernames, returns JSON errors for invalid or unknown users and
+upstream failures, and sends shared HTTP cache headers for successful responses.
+
+Set `GITHUB_TOKEN` in the server environment to make authenticated requests to
+GitHub when a token is available. The endpoint also works without a token, but
+then uses GitHub's anonymous rate limits. Never expose this token to browser
+code or commit it to the repository.
+
 ## Deployment Notes
 
 ### Current GitHub Pages setup

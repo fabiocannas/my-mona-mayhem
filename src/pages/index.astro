@@ -6,12 +6,417 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Mona Mayhem</title>
+		<title>Mona Mayhem - GitHub Contribution Battle Arena</title>
 	</head>
 	<body>
-		<h1>Mona Mayhem</h1>
-		<p>Welcome to Mona Mayhem! Time to build a GitHub Contribution Battle Arena.</p>
+		<main>
+			<h1>Mona Mayhem - GitHub Contribution Battle Arena</h1>
+
+			<form id="battle-form" novalidate>
+				<div class="players">
+					<div class="field">
+						<label for="player1">Player 1</label>
+						<input
+							id="player1"
+							name="player1"
+							type="text"
+							autocomplete="off"
+							spellcheck="false"
+							placeholder="octocat"
+						/>
+					</div>
+					<div class="field">
+						<label for="player2">Player 2</label>
+						<input
+							id="player2"
+							name="player2"
+							type="text"
+							autocomplete="off"
+							spellcheck="false"
+							placeholder="torvalds"
+						/>
+					</div>
+				</div>
+				<button id="battle-button" type="submit">Battle</button>
+			</form>
+
+			<section id="results" aria-live="polite" aria-atomic="true"></section>
+		</main>
+
+		<style is:global>
+			body {
+				margin: 0;
+				padding: 2rem 1rem;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				color: #222;
+				background: #fff;
+			}
+
+			main {
+				max-width: 40rem;
+				margin: 0 auto;
+			}
+
+			h1 {
+				margin: 0 0 1.5rem;
+				font-size: 1.75rem;
+				line-height: 1.2;
+			}
+
+			.players {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 1rem;
+			}
+
+			.field {
+				display: flex;
+				flex-direction: column;
+				gap: 0.25rem;
+			}
+
+			label {
+				font-weight: 600;
+			}
+
+			input {
+				padding: 0.5rem;
+				font: inherit;
+				border: 1px solid #888;
+				border-radius: 4px;
+				background: #fff;
+				color: inherit;
+			}
+
+			input:focus-visible,
+			button:focus-visible {
+				outline: 2px solid #222;
+				outline-offset: 2px;
+			}
+
+			button {
+				margin-top: 1rem;
+				padding: 0.6rem 1.5rem;
+				font: inherit;
+				font-weight: 600;
+				border: 1px solid #222;
+				border-radius: 4px;
+				background: #222;
+				color: #fff;
+				cursor: pointer;
+			}
+
+			button:disabled {
+				opacity: 0.6;
+				cursor: progress;
+			}
+
+			#results {
+				margin-top: 1.5rem;
+			}
+
+			.status {
+				margin: 0;
+			}
+
+			.status.error {
+				color: #b42318;
+				font-weight: 600;
+			}
+
+			.status.loading {
+				animation: pulse 1.2s ease-in-out infinite;
+			}
+
+			@keyframes pulse {
+				50% {
+					opacity: 0.4;
+				}
+			}
+
+			.cards {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+				align-items: center;
+				gap: 1rem;
+			}
+
+			.card {
+				padding: 1rem;
+				border: 1px solid #bbb;
+				border-radius: 6px;
+				background: #fff;
+			}
+
+			.card h2 {
+				margin: 0 0 0.5rem;
+				font-size: 1.1rem;
+			}
+
+			.total {
+				font-size: 1.75rem;
+				font-weight: 700;
+				margin: 0;
+			}
+
+			.range {
+				margin: 0.25rem 0 0;
+				font-size: 0.85rem;
+				opacity: 0.75;
+			}
+
+			.graph-scroll {
+				margin-top: 1rem;
+				overflow-x: auto;
+				padding: 0.25rem 0 0.5rem;
+			}
+
+			.contribution-graph {
+				display: grid;
+				grid-template-rows: repeat(7, 10px);
+				grid-auto-flow: column;
+				grid-auto-columns: 10px;
+				gap: 3px;
+				width: max-content;
+			}
+
+			.contribution-day {
+				width: 10px;
+				height: 10px;
+				border-radius: 2px;
+				cursor: help;
+				outline: none;
+			}
+
+			.contribution-day:focus-visible {
+				outline: 2px solid #222;
+				outline-offset: 2px;
+			}
+
+			.vs-badge {
+				display: grid;
+				place-items: center;
+				width: 2.5rem;
+				height: 2.5rem;
+				border-radius: 50%;
+				border: 1px solid #222;
+				background: #fff;
+				color: #222;
+				font-weight: 700;
+				font-size: 0.85rem;
+			}
+
+			.outcome {
+				margin-top: 1rem;
+				font-size: 1.1rem;
+				font-weight: 700;
+			}
+
+			@media (max-width: 36rem) {
+				.players {
+					grid-template-columns: 1fr;
+				}
+
+				.cards {
+					grid-template-columns: 1fr;
+				}
+
+				.vs-badge {
+					margin: 0 auto;
+				}
+
+				button {
+					width: 100%;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.status.loading {
+					animation: none;
+				}
+			}
+		</style>
+
+		<script>
+			interface ContributionDay {
+				weekday: number;
+				count: number;
+				level: number;
+			}
+
+			interface ContributionWeek {
+				first_day: string;
+				contribution_days: ContributionDay[];
+			}
+
+			interface ContributionData {
+				total_contributions: number;
+				from: string;
+				to: string;
+				colors_full: string[];
+				weeks: ContributionWeek[];
+			}
+
+			interface ApiError {
+				error: string;
+			}
+
+			const form = document.getElementById('battle-form') as HTMLFormElement;
+			const button = document.getElementById('battle-button') as HTMLButtonElement;
+			const player1Input = document.getElementById('player1') as HTMLInputElement;
+			const player2Input = document.getElementById('player2') as HTMLInputElement;
+			const results = document.getElementById('results') as HTMLElement;
+
+			function showStatus(message: string, state: 'default' | 'error' | 'loading' = 'default') {
+				results.innerHTML = '';
+				const paragraph = document.createElement('p');
+				paragraph.className = state === 'default' ? 'status' : `status ${state}`;
+				paragraph.textContent = message;
+				results.append(paragraph);
+			}
+
+			async function fetchContributions(username: string): Promise<ContributionData> {
+				const response = await fetch(`/api/contributions/${encodeURIComponent(username)}`);
+				const payload = (await response.json()) as ContributionData | ApiError;
+
+				if (!response.ok) {
+					const message = (payload as ApiError).error ?? 'Request failed.';
+					throw new Error(`${username}: ${message}`);
+				}
+
+				return payload as ContributionData;
+			}
+
+			function formatDate(date: Date): string {
+				return new Intl.DateTimeFormat('en', {
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					timeZone: 'UTC'
+				}).format(date);
+			}
+
+			function buildGraph(data: ContributionData): HTMLElement {
+				const scrollArea = document.createElement('div');
+				scrollArea.className = 'graph-scroll';
+
+				const graph = document.createElement('div');
+				graph.className = 'contribution-graph';
+				graph.setAttribute(
+					'aria-label',
+					`${data.total_contributions.toLocaleString()} contributions from ${data.from} to ${data.to}`
+				);
+
+				for (const week of data.weeks) {
+					const firstDay = new Date(`${week.first_day}T00:00:00Z`);
+
+					for (const day of week.contribution_days) {
+						const date = new Date(firstDay);
+						date.setUTCDate(firstDay.getUTCDate() + day.weekday);
+
+						const tooltip = `${day.count} contribution${day.count === 1 ? '' : 's'} on ${formatDate(date)}`;
+						const square = document.createElement('span');
+						square.className = 'contribution-day';
+						square.style.backgroundColor =
+							data.colors_full[day.level] ?? data.colors_full[0] ?? '#ebedf0';
+						square.title = tooltip;
+						square.setAttribute('aria-label', tooltip);
+						square.tabIndex = 0;
+						graph.append(square);
+					}
+				}
+
+				scrollArea.append(graph);
+				return scrollArea;
+			}
+
+			function buildCard(username: string, data: ContributionData): HTMLElement {
+				const card = document.createElement('div');
+				card.className = 'card';
+
+				const heading = document.createElement('h2');
+				heading.textContent = username;
+
+				const total = document.createElement('p');
+				total.className = 'total';
+				total.textContent = data.total_contributions.toLocaleString();
+
+				const range = document.createElement('p');
+				range.className = 'range';
+				range.textContent = `${data.from} → ${data.to}`;
+
+				card.append(heading, total, range, buildGraph(data));
+				return card;
+			}
+
+			function renderResults(
+				player1: string,
+				data1: ContributionData,
+				player2: string,
+				data2: ContributionData
+			) {
+				results.innerHTML = '';
+
+				const cards = document.createElement('div');
+				cards.className = 'cards';
+
+				const vsBadge = document.createElement('div');
+				vsBadge.className = 'vs-badge';
+				vsBadge.textContent = 'VS';
+				vsBadge.setAttribute('aria-hidden', 'true');
+
+				cards.append(buildCard(player1, data1), vsBadge, buildCard(player2, data2));
+
+				const outcome = document.createElement('p');
+				outcome.className = 'outcome';
+
+				if (data1.total_contributions > data2.total_contributions) {
+					outcome.textContent = `${player1} wins!`;
+				} else if (data2.total_contributions > data1.total_contributions) {
+					outcome.textContent = `${player2} wins!`;
+				} else {
+					outcome.textContent = "It's a tie!";
+				}
+
+				results.append(cards, outcome);
+			}
+
+			form.addEventListener('submit', async (event) => {
+				event.preventDefault();
+
+				const player1 = player1Input.value.trim();
+				const player2 = player2Input.value.trim();
+
+				if (!player1 || !player2) {
+					showStatus('Enter a GitHub username for both players.', 'error');
+					return;
+				}
+
+				button.disabled = true;
+				button.textContent = 'Battling…';
+				form.setAttribute('aria-busy', 'true');
+				showStatus('Loading contribution data…', 'loading');
+
+				try {
+					const [data1, data2] = await Promise.all([
+						fetchContributions(player1),
+						fetchContributions(player2)
+					]);
+					renderResults(player1, data1, player2, data2);
+				} catch (error) {
+					showStatus(
+						error instanceof Error ? error.message : 'Something went wrong.',
+						'error'
+					);
+				} finally {
+					button.disabled = false;
+					button.textContent = 'Battle';
+					form.removeAttribute('aria-busy');
+				}
+			});
+		</script>
 	</body>
 </html>
