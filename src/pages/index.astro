@@ -58,6 +58,8 @@
 				--bg-panel-alt: #1b1b38;
 				--green: #5fed83;
 				--purple: #8a2be2;
+				--focus-core: #f5f7ff;
+				--focus-ring: #c184ff;
 				--border: #3a3a63;
 				--text: #e9e9f5;
 				--text-dim: #a9a9cc;
@@ -213,12 +215,30 @@
 				border-radius: 4px;
 				background: var(--bg-panel);
 				color: var(--text);
+				transition:
+					border-color 0.15s ease,
+					box-shadow 0.15s ease,
+					background-color 0.15s ease;
+			}
+
+			input[aria-invalid='true'] {
+				border-color: var(--error);
+				background: linear-gradient(180deg, rgba(255, 107, 129, 0.12), var(--bg-panel));
+				box-shadow:
+					0 0 0 1px rgba(255, 107, 129, 0.45),
+					0 0 10px rgba(255, 107, 129, 0.28);
 			}
 
 			input:focus-visible,
 			button:focus-visible {
-				outline: 2px solid var(--green);
-				outline-offset: 2px;
+				outline: 2px solid var(--focus-core);
+				outline-offset: 3px;
+				border-color: var(--focus-ring);
+				box-shadow:
+					0 0 0 2px rgba(10, 10, 26, 0.95),
+					0 0 0 5px rgba(138, 43, 226, 0.7),
+					0 0 14px rgba(95, 237, 131, 0.55),
+					0 0 24px rgba(138, 43, 226, 0.45);
 			}
 
 			button {
@@ -231,6 +251,10 @@
 				background: var(--green);
 				color: #0a0a1a;
 				cursor: pointer;
+				transition:
+					transform 0.15s ease,
+					box-shadow 0.15s ease,
+					background-color 0.15s ease;
 			}
 
 			button:disabled {
@@ -250,10 +274,78 @@
 			.status.error {
 				color: var(--error);
 				font-weight: 700;
+				padding: 0.75rem 0.85rem;
+				border: 1px solid rgba(255, 107, 129, 0.55);
+				border-radius: 6px;
+				background:
+					linear-gradient(180deg, rgba(255, 107, 129, 0.16), rgba(255, 107, 129, 0.06)),
+					var(--bg-panel);
+				text-shadow:
+					0 0 4px rgba(255, 107, 129, 0.95),
+					0 0 10px rgba(255, 107, 129, 0.7),
+					0 0 18px rgba(255, 107, 129, 0.4);
+				box-shadow:
+					0 0 0 1px rgba(255, 107, 129, 0.2),
+					0 0 14px rgba(255, 107, 129, 0.12);
+				animation:
+					error-shake 0.28s ease-in-out 1,
+					error-flare 0.75s ease-out 1;
 			}
 
 			.status.loading {
 				animation: loading-shift 1.6s ease-in-out infinite;
+			}
+
+			@keyframes error-shake {
+				0%,
+				100% {
+					transform: translateX(0);
+				}
+				20% {
+					transform: translateX(-4px);
+				}
+				40% {
+					transform: translateX(4px);
+				}
+				60% {
+					transform: translateX(-3px);
+				}
+				80% {
+					transform: translateX(3px);
+				}
+			}
+
+			@keyframes error-flare {
+				0% {
+					opacity: 0.88;
+					text-shadow:
+						0 0 2px rgba(255, 107, 129, 0.75),
+						0 0 5px rgba(255, 107, 129, 0.55),
+						0 0 10px rgba(255, 107, 129, 0.25);
+					box-shadow:
+						0 0 0 1px rgba(255, 107, 129, 0.2),
+						0 0 8px rgba(255, 107, 129, 0.1);
+				}
+				50% {
+					opacity: 1;
+					text-shadow:
+						0 0 5px rgba(255, 107, 129, 1),
+						0 0 14px rgba(255, 107, 129, 0.85),
+						0 0 28px rgba(255, 107, 129, 0.55);
+					box-shadow:
+						0 0 0 1px rgba(255, 107, 129, 0.35),
+						0 0 22px rgba(255, 107, 129, 0.2);
+				}
+				100% {
+					opacity: 1;
+					text-shadow:
+						0 0 4px rgba(255, 107, 129, 0.95),
+						0 0 10px rgba(255, 107, 129, 0.7),
+						0 0 18px rgba(255, 107, 129, 0.4);
+					box-shadow:
+						0 0 0 1px rgba(255, 107, 129, 0.2),
+						0 0 14px rgba(255, 107, 129, 0.12);
+				}
 			}
 
 			@keyframes loading-shift {
@@ -363,8 +455,13 @@
 			}
 
 			.contribution-day:focus-visible {
-				outline: 2px solid var(--green);
+				outline: 2px solid var(--focus-core);
 				outline-offset: 2px;
+				box-shadow:
+					0 0 0 2px rgba(10, 10, 26, 0.95),
+					0 0 0 4px rgba(138, 43, 226, 0.9),
+					0 0 8px 2px rgba(95, 237, 131, 0.85),
+					0 0 16px 4px rgba(138, 43, 226, 0.65);
 			}
 
 			.vs-badge {
@@ -417,13 +514,21 @@
 				color: var(--green);
 			}
 
+			@media (max-width: 64rem) {
+				.cards {
+					grid-template-columns: minmax(0, 1fr);
+					gap: 1.25rem;
+				}
+
+				.vs-badge {
+					margin: 0 auto;
+				}
+			}
+
 			@media (max-width: 36rem) {
 				.players {
 					grid-template-columns: 1fr;
-				}
-
-				.cards {
-					grid-template-columns: 1fr;
+					gap: 0.75rem;
 				}
 
 				.vs-badge {
@@ -473,6 +578,10 @@
 					color: var(--green);
 				}
 
+				.status.error {
+					animation: none;
+				}
+
 				.contribution-day {
 					transition: none;
 				}
@@ -508,6 +617,15 @@
 			const player1Input = document.getElementById('player1') as HTMLInputElement;
 			const player2Input = document.getElementById('player2') as HTMLInputElement;
 			const results = document.getElementById('results') as HTMLElement;
+
+			function setFieldInvalidState(input: HTMLInputElement, isInvalid: boolean) {
+				if (isInvalid) {
+					input.setAttribute('aria-invalid', 'true');
+					return;
+				}
+
+				input.removeAttribute('aria-invalid');
+			}
 
 			function showStatus(message: string, state: 'default' | 'error' | 'loading' = 'default') {
 				results.innerHTML = '';
@@ -623,13 +741,26 @@
 				results.append(cards, outcome);
 			}
 
+			for (const input of [player1Input, player2Input]) {
+				input.addEventListener('input', () => {
+					if (input.value.trim()) {
+						input.removeAttribute('aria-invalid');
+					}
+				});
+			}
+
 			form.addEventListener('submit', async (event) => {
 				event.preventDefault();
 
 				const player1 = player1Input.value.trim();
 				const player2 = player2Input.value.trim();
+				const player1Missing = !player1;
+				const player2Missing = !player2;
 
-				if (!player1 || !player2) {
+				setFieldInvalidState(player1Input, player1Missing);
+				setFieldInvalidState(player2Input, player2Missing);
+
+				if (player1Missing || player2Missing) {
 					showStatus('Enter a GitHub username for both players.', 'error');
 					return;
 				}
