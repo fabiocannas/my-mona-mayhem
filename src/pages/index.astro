@@ -20,6 +20,12 @@
 		<main>
 			<h1>Mona Mayhem - GitHub Contribution Battle Arena</h1>
 
+			<div class="theme-controls">
+				<button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
+					Theme: Classic
+				</button>
+			</div>
+
 			<form id="battle-form" novalidate>
 				<div class="players">
 					<div class="field">
@@ -66,6 +72,12 @@
 				--text: #e9e9f5;
 				--text-dim: #a9a9cc;
 				--error: #ff6b81;
+			}
+
+			body[data-theme='blue-orange'] {
+				--green: #00f5ff;
+				--purple: #ff6b35;
+				--focus-ring: #ff9a6f;
 			}
 
 			body {
@@ -121,6 +133,28 @@
 					0 0 10px var(--green),
 					0 0 20px var(--purple);
 				animation: neon-pulse 3s ease-in-out infinite, neon-flicker 6s linear infinite;
+			}
+
+			.theme-controls {
+				display: flex;
+				justify-content: flex-end;
+				margin-bottom: 1rem;
+			}
+
+			.theme-toggle {
+				margin-top: 0;
+				padding: 0.55rem 0.8rem;
+				font-size: 0.55rem;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+					var(--bg-panel-alt);
+				color: var(--text);
+			}
+
+			.theme-toggle[aria-pressed='true'] {
+				box-shadow:
+					0 0 0 1px color-mix(in srgb, var(--purple) 30%, transparent),
+					0 0 12px color-mix(in srgb, var(--green) 38%, transparent);
 			}
 
 			@keyframes neon-pulse {
@@ -637,10 +671,31 @@
 			const player2Input = document.getElementById('player2') as HTMLInputElement;
 			const results = document.getElementById('results') as HTMLElement;
 			const liveStatus = document.getElementById('live-status') as HTMLElement;
+			const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
+			const storageKey = 'mona-mayhem-theme';
 
 			function announce(message: string) {
 				liveStatus.textContent = message;
 			}
+
+			type ThemeName = 'classic' | 'blue-orange';
+
+			function applyTheme(theme: ThemeName) {
+				document.body.dataset.theme = theme === 'blue-orange' ? theme : '';
+				themeToggle.setAttribute('aria-pressed', String(theme === 'blue-orange'));
+				themeToggle.textContent =
+					theme === 'blue-orange' ? 'Theme: Blue + Orange' : 'Theme: Classic';
+			}
+
+			const savedTheme = window.localStorage.getItem(storageKey);
+			applyTheme(savedTheme === 'blue-orange' ? 'blue-orange' : 'classic');
+
+			themeToggle.addEventListener('click', () => {
+				const nextTheme: ThemeName =
+					document.body.dataset.theme === 'blue-orange' ? 'classic' : 'blue-orange';
+				applyTheme(nextTheme);
+				window.localStorage.setItem(storageKey, nextTheme);
+			});
 
 			function setFieldInvalidState(input: HTMLInputElement, isInvalid: boolean) {
 				if (isInvalid) {
