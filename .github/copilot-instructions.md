@@ -47,6 +47,16 @@ The repo is designed to be a small, file-based Astro app rather than a React/Vit
 - The README’s GitHub Pages section is important context: the current workflow deploys only `docs/` and `workshop/` to Pages. If the Astro app is meant to be deployed to Pages, the app must be reconfigured from server output to static output and the workflow must be updated to upload `dist/`.
 - Do not assume a test or lint setup exists. When adding tooling, keep it consistent with the existing minimal Astro app setup and avoid introducing a heavier framework unless the task requires it.
 
+## Visual design: retro arcade theme
+
+`src/pages/index.astro` uses a retro arcade look. New UI on this page (or any page meant to match it) must keep this aesthetic rather than reverting to plain/neutral styling:
+
+- **Colors**: dark background `#0a0a1a` (`--bg`), with `--green: #5fed83` and `--purple: #8a2be2` as the two accent colors used for highlights, glows, and gradients. Supporting panel/border colors are derived neutrals (`--bg-panel`, `--bg-panel-alt`, `--border`) that stay dark enough to keep the neon accents readable.
+- **Font**: Google Fonts **Press Start 2P** (pixel/arcade style) as the page's primary font, loaded via a `<link>` in `<head>`. Because it's a wide font, size text down for longer strings (status/error text, date ranges) and reserve larger sizes for short strings (title, totals, VS badge).
+- **Animation style**: subtle, continuous, looping motion rather than one-off transitions — CRT scanline drift, a breathing/flickering neon title glow, a shifting-gradient VS badge with a dramatic pulse, a continuous card shimmer sweep, float-in on inputs/cards, color-shifting loading text, and glow-on-hover/focus for interactive elements (e.g. contribution squares).
+- **Accessibility rule**: every animation must have a corresponding override under `@media (prefers-reduced-motion: reduce)` that disables the animation and falls back to a static, reasonable end-state (not just removing the effect entirely if the base style depends on it, e.g. keep the neon `text-shadow` on `h1` even with the pulse/flicker disabled).
+- `<style>` blocks on pages with client-created DOM (like the battle results cards, VS badge, and contribution squares) must use `<style is:global>` — Astro's scoped styles only attach to elements present in the server-rendered markup, so scoped CSS silently fails to style anything added by client-side script.
+
 ## Working style for this repo
 
 When making changes, favor the smallest set of files that solve the current task:
