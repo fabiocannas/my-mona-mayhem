@@ -48,7 +48,8 @@
 				<button id="battle-button" type="submit">Battle</button>
 			</form>
 
-			<section id="results" aria-live="polite" aria-atomic="true"></section>
+			<section id="results"></section>
+			<p id="live-status" class="visually-hidden" aria-live="polite" aria-atomic="true"></p>
 		</main>
 
 		<style is:global>
@@ -58,6 +59,7 @@
 				--bg-panel-alt: #1b1b38;
 				--green: #5fed83;
 				--purple: #8a2be2;
+				--purple-light: #c9a3ff;
 				--focus-core: #f5f7ff;
 				--focus-ring: #c184ff;
 				--border: #3a3a63;
@@ -229,6 +231,11 @@
 					0 0 10px rgba(255, 107, 129, 0.28);
 			}
 
+			input:disabled {
+				opacity: 0.6;
+				cursor: progress;
+			}
+
 			input:focus-visible,
 			button:focus-visible {
 				outline: 2px solid var(--focus-core);
@@ -264,6 +271,18 @@
 
 			#results {
 				margin-top: 1.5rem;
+			}
+
+			.visually-hidden {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
 			}
 
 			.status {
@@ -355,8 +374,8 @@
 					opacity: 1;
 				}
 				50% {
-					color: var(--purple);
-					opacity: 0.7;
+					color: var(--purple-light);
+					opacity: 1;
 				}
 			}
 
@@ -617,6 +636,11 @@
 			const player1Input = document.getElementById('player1') as HTMLInputElement;
 			const player2Input = document.getElementById('player2') as HTMLInputElement;
 			const results = document.getElementById('results') as HTMLElement;
+			const liveStatus = document.getElementById('live-status') as HTMLElement;
+
+			function announce(message: string) {
+				liveStatus.textContent = message;
+			}
 
 			function setFieldInvalidState(input: HTMLInputElement, isInvalid: boolean) {
 				if (isInvalid) {
@@ -633,18 +657,41 @@
 				paragraph.className = state === 'default' ? 'status' : `status ${state}`;
 				paragraph.textContent = message;
 				results.append(paragraph);
+				announce(message);
+			}
+
+			function isContributionData(value: unknown): value is ContributionData {
+				if (!value || typeof value !== 'object') return false;
+				const candidate = value as Partial<ContributionData>;
+				return (
+					typeof candidate.total_contributions === 'number' &&
+					typeof candidate.from === 'string' &&
+					typeof candidate.to === 'string' &&
+					Array.isArray(candidate.colors_full) &&
+					Array.isArray(candidate.weeks)
+				);
 			}
 
 			async function fetchContributions(username: string): Promise<ContributionData> {
 				const response = await fetch(`/api/contributions/${encodeURIComponent(username)}`);
-				const payload = (await response.json()) as ContributionData | ApiError;
+
+				let payload: unknown;
+				try {
+					payload = await response.json();
+				} catch {
+					throw new Error(`${username}: Contribution data could not be read. Please try again.`);
+				}
 
 				if (!response.ok) {
-					const message = (payload as ApiError).error ?? 'Request failed.';
+					const message = (payload as Partial<ApiError>)?.error ?? 'Request failed.';
 					throw new Error(`${username}: ${message}`);
 				}
 
-				return payload as ContributionData;
+				if (!isContributionData(payload)) {
+					throw new Error(`${username}: Contribution data was in an unexpected format.`);
+				}
+
+				return payload;
 			}
 
 			function formatDate(date: Date): string {
@@ -662,11 +709,13 @@
 
 				const graph = document.createElement('div');
 				graph.className = 'contribution-graph';
+				graph.setAttribute('role', 'img');
 				graph.setAttribute(
 					'aria-label',
 					`${data.total_contributions.toLocaleString()} contributions from ${data.from} to ${data.to}`
 				);
 
+				let weekIndex = 0;
 				for (const week of data.weeks) {
 					const firstDay = new Date(`${week.first_day}T00:00:00Z`);
 
@@ -679,11 +728,17 @@
 						square.className = 'contribution-day';
 						square.style.backgroundColor =
 							data.colors_full[day.level] ?? data.colors_full[0] ?? '#ebedf0';
+						// Explicit grid placement keeps squares aligned by weekday/week even
+						// when a partial first/last week omits some weekdays.
+						square.style.gridColumn = String(weekIndex + 1);
+						square.style.gridRow = String(day.weekday + 1);
 						square.title = tooltip;
 						square.setAttribute('aria-label', tooltip);
 						square.tabIndex = 0;
 						graph.append(square);
 					}
+
+					weekIndex += 1;
 				}
 
 				scrollArea.append(graph);
@@ -739,6 +794,11 @@
 				}
 
 				results.append(cards, outcome);
+
+				announce(
+					`Battle complete. ${player1}: ${data1.total_contributions.toLocaleString()} contributions. ` +
+						`${player2}: ${data2.total_contributions.toLocaleString()} contributions. ${outcome.textContent}`
+				);
 			}
 
 			for (const input of [player1Input, player2Input]) {
@@ -766,6 +826,8 @@
 				}
 
 				button.disabled = true;
+				player1Input.disabled = true;
+				player2Input.disabled = true;
 				button.textContent = 'Battling…';
 				form.setAttribute('aria-busy', 'true');
 				showStatus('Loading contribution data…', 'loading');
@@ -783,6 +845,8 @@
 					);
 				} finally {
 					button.disabled = false;
+					player1Input.disabled = false;
+					player2Input.disabled = false;
 					button.textContent = 'Battle';
 					form.removeAttribute('aria-busy');
 				}
