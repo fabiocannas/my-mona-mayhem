@@ -24,6 +24,9 @@
 				<button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
 					Theme: Classic
 				</button>
+				<button id="mute-toggle" class="mute-toggle" type="button" aria-pressed="false">
+					Mute: Off
+				</button>
 			</div>
 
 			<form id="battle-form" novalidate>
@@ -138,10 +141,13 @@
 			.theme-controls {
 				display: flex;
 				justify-content: flex-end;
+				flex-wrap: wrap;
+				gap: 0.75rem;
 				margin-bottom: 1rem;
 			}
 
-			.theme-toggle {
+			.theme-toggle,
+			.mute-toggle {
 				margin-top: 0;
 				padding: 0.55rem 0.8rem;
 				font-size: 0.55rem;
@@ -155,6 +161,13 @@
 				box-shadow:
 					0 0 0 1px color-mix(in srgb, var(--purple) 30%, transparent),
 					0 0 12px color-mix(in srgb, var(--green) 38%, transparent);
+			}
+
+			.mute-toggle[aria-pressed='true'] {
+				border-color: var(--error);
+				box-shadow:
+					0 0 0 1px rgba(255, 107, 129, 0.28),
+					0 0 12px rgba(255, 107, 129, 0.22);
 			}
 
 			@keyframes neon-pulse {
@@ -672,13 +685,27 @@
 			const results = document.getElementById('results') as HTMLElement;
 			const liveStatus = document.getElementById('live-status') as HTMLElement;
 			const themeToggle = document.getElementById('theme-toggle') as HTMLButtonElement;
+			const muteToggle = document.getElementById('mute-toggle') as HTMLButtonElement;
 			const storageKey = 'mona-mayhem-theme';
+			const muteStorageKey = 'mona-mayhem-muted';
 
 			function announce(message: string) {
 				liveStatus.textContent = message;
 			}
 
 			type ThemeName = 'classic' | 'blue-orange';
+			type AudioContextConstructor = typeof AudioContext;
+
+			const AudioContextClass =
+				window.AudioContext ??
+				(
+					window as Window &
+						typeof globalThis & {
+							webkitAudioContext?: AudioContextConstructor;
+						}
+				).webkitAudioContext;
+			let audioContext: AudioContext | null = null;
+			let isMuted = window.localStorage.getItem(muteStorageKey) === 'true';
 
 			function applyTheme(theme: ThemeName) {
 				document.body.dataset.theme = theme === 'blue-orange' ? theme : '';
@@ -687,14 +714,152 @@
 					theme === 'blue-orange' ? 'Theme: Blue + Orange' : 'Theme: Classic';
 			}
 
+			function applyMuteState() {
+				muteToggle.setAttribute('aria-pressed', String(isMuted));
+				muteToggle.textContent = isMuted ? 'Mute: On' : 'Mute: Off';
+			}
+
+			async function getAudioContext() {
+				if (!AudioContextClass) return null;
+
+				audioContext ??= new AudioContextClass();
+
+				if (audioContext.state === 'suspended') {
+					try {
+						await audioContext.resume();
+					} catch {
+						return null;
+					}
+				}
+
+				return audioContext;
+			}
+
+			function scheduleTone(
+				context: AudioContext,
+				options: {
+					type: OscillatorType;
+					frequency: number;
+					endFrequency?: number;
+					start?: number;
+					duration: number;
+					volume: number;
+					detune?: number;
+				}
+			) {
+				const {
+					type,
+					frequency,
+					endFrequency = frequency,
+					start = 0,
+					duration,
+					volume,
+					detune = 0
+				} = options;
+				const now = context.currentTime;
+				const oscillator = context.createOscillator();
+				const gain = context.createGain();
+
+				oscillator.type = type;
+				oscillator.frequency.setValueAtTime(frequency, now + start);
+				oscillator.detune.setValueAtTime(detune, now + start);
+				oscillator.frequency.exponentialRampToValueAtTime(
+					Math.max(endFrequency, 40),
+					now + start + duration
+				);
+
+				gain.gain.setValueAtTime(0.0001, now + start);
+				gain.gain.linearRampToValueAtTime(volume, now + start + Math.min(0.02, duration / 3));
+				gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+
+				oscillator.connect(gain);
+				gain.connect(context.destination);
+				oscillator.start(now + start);
+				oscillator.stop(now + start + duration + 0.02);
+			}
+
+			async function playSoundEffect(effect: 'coin' | 'power-up' | 'explosion') {
+				if (isMuted) return;
+
+				const context = await getAudioContext();
+				if (!context) return;
+
+				if (effect === 'coin') {
+					scheduleTone(context, {
+						type: 'square',
+						frequency: 988,
+						duration: 0.07,
+						volume: 0.12
+					});
+					scheduleTone(context, {
+						type: 'square',
+						frequency: 1319,
+						start: 0.08,
+						duration: 0.1,
+						volume: 0.1
+					});
+					return;
+				}
+
+				if (effect === 'power-up') {
+					scheduleTone(context, {
+						type: 'triangle',
+						frequency: 523,
+						start: 0,
+						duration: 0.08,
+						volume: 0.09
+					});
+					scheduleTone(context, {
+						type: 'triangle',
+						frequency: 659,
+						start: 0.08,
+						duration: 0.08,
+						volume: 0.1
+					});
+					scheduleTone(context, {
+						type: 'triangle',
+						frequency: 784,
+						start: 0.16,
+						duration: 0.14,
+						volume: 0.12
+					});
+					return;
+				}
+
+				scheduleTone(context, {
+					type: 'sawtooth',
+					frequency: 180,
+					endFrequency: 45,
+					duration: 0.34,
+					volume: 0.14,
+					detune: -80
+				});
+				scheduleTone(context, {
+					type: 'triangle',
+					frequency: 120,
+					endFrequency: 40,
+					start: 0.02,
+					duration: 0.32,
+					volume: 0.1,
+					detune: 80
+				});
+			}
+
 			const savedTheme = window.localStorage.getItem(storageKey);
 			applyTheme(savedTheme === 'blue-orange' ? 'blue-orange' : 'classic');
+			applyMuteState();
 
 			themeToggle.addEventListener('click', () => {
 				const nextTheme: ThemeName =
 					document.body.dataset.theme === 'blue-orange' ? 'classic' : 'blue-orange';
 				applyTheme(nextTheme);
 				window.localStorage.setItem(storageKey, nextTheme);
+			});
+
+			muteToggle.addEventListener('click', () => {
+				isMuted = !isMuted;
+				applyMuteState();
+				window.localStorage.setItem(muteStorageKey, String(isMuted));
 			});
 
 			function setFieldInvalidState(input: HTMLInputElement, isInvalid: boolean) {
@@ -713,6 +878,12 @@
 				paragraph.textContent = message;
 				results.append(paragraph);
 				announce(message);
+
+				if (state === 'loading') {
+					void playSoundEffect('coin');
+				} else if (state === 'error') {
+					void playSoundEffect('explosion');
+				}
 			}
 
 			function isContributionData(value: unknown): value is ContributionData {
@@ -849,6 +1020,7 @@
 				}
 
 				results.append(cards, outcome);
+				void playSoundEffect('power-up');
 
 				announce(
 					`Battle complete. ${player1}: ${data1.total_contributions.toLocaleString()} contributions. ` +
